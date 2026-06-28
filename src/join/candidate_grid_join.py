@@ -97,7 +97,22 @@ def nearest_join_within(
     result = gpd.GeoDataFrame(joined, geometry="geometry", crs=working_crs).to_crs(
         storage_crs
     )
-    return result.reset_index(drop=True)
+    result = result.reset_index(drop=True)
+
+    # Row conservation guard. The join is one row per candidate. A nearest join
+    # that ties, duplicates, or drops would change the count. A silent change
+    # here is the exact class of failure the centroid bug was. Fail loudly.
+    if len(result) != len(candidates):
+        raise ValueError(
+            f"candidate to grid join changed the row count: {len(candidates)} "
+            f"candidates in, {len(result)} rows out. The join must conserve rows."
+        )
+    if set(result["candidate_id"]) != set(candidates["candidate_id"].astype(str)):
+        raise ValueError(
+            "candidate to grid join lost or altered candidate ids. The join must "
+            "preserve every candidate exactly once."
+        )
+    return result
 
 
 def run_territory(

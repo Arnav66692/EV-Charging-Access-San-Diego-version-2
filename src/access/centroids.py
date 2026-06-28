@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Iterable
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import requests
 from shapely.geometry import Point
@@ -92,6 +93,21 @@ def geometric_centroids(block_group_polygons: gpd.GeoDataFrame) -> gpd.GeoDataFr
         geometry=centroids.to_numpy(),
         crs="EPSG:3310",
     ).to_crs("EPSG:4326")
+
+    # Conservation guard against the exact bug this replaced. Every non-empty
+    # input polygon must yield a finite centroid. A drop to NaN, from an index
+    # misalignment, must raise rather than pass silently.
+    n_valid_in = int(
+        (block_group_polygons.geometry.notna() & ~block_group_polygons.geometry.is_empty).sum()
+    )
+    finite_out = out.geometry.notna().to_numpy() & np.isfinite(out.geometry.x.to_numpy()) & np.isfinite(
+        out.geometry.y.to_numpy()
+    )
+    if int(finite_out.sum()) != n_valid_in:
+        raise ValueError(
+            f"geometric_centroids produced {int(finite_out.sum())} finite centroids "
+            f"for {n_valid_in} non-empty input polygons. Rows were lost to NaN."
+        )
     return out
 
 

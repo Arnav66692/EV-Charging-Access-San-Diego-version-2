@@ -1,0 +1,12 @@
+{
+  "endpoint": "https://services5.arcgis.com/z6hI6KRjKHvhNO0r/arcgis/rest/services/ICA_Layer/FeatureServer/2/query",
+  "feature_count": 524522,
+  "generation_limiting_field": "most_limiting_factor",
+  "license": "SCE DERiM Open Data. Redistributable. Attribution to Southern California Edison.",
+  "load_field": "ica_overall_load",
+  "pulled_at_utc": "2026-06-28T22:06:23Z",
+  "redistributable": true,
+  "snapshot_file": "sce_derim_ica_2026-06-28.geojson.gz",
+  "snapshot_sha256": "23fb95d5c93418434a16878ffe7812e136c4f84966141d1793867ecf7365a50d",
+  "source": "SCE DERiM Integration Capacity Analysis load capacity layer"
+}

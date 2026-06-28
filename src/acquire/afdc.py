@@ -134,6 +134,54 @@ def parse_ports(raw: dict[str, Any]) -> pd.DataFrame:
     return df
 
 
+# The AFDC bulk CSV from afdc.energy.gov uses human readable column names, which
+# differ from the developer API JSON keys the parser above was written against.
+# This map adapts the bulk schema to the same record shape, so parse_stations and
+# parse_ports work unchanged. Schema differences noted:
+#   "EV DC Fast Count"   -> ev_dc_fast_num    (Count, not Num)
+#   "EV Level2 EVSE Num" -> ev_level2_evse_num
+#   "EV Connector Types" is a space separated string, not a JSON list
+#   the bulk CSV has no County column, so county is assigned by point in polygon
+BULK_TO_API = {
+    "ID": "id",
+    "Station Name": "station_name",
+    "Latitude": "latitude",
+    "Longitude": "longitude",
+    "EV Network": "ev_network",
+    "Status Code": "status_code",
+    "Access Code": "access_code",
+    "EV DC Fast Count": "ev_dc_fast_num",
+    "EV Level2 EVSE Num": "ev_level2_evse_num",
+    "State": "state",
+    "City": "city",
+    "ZIP": "zip",
+}
+
+
+def read_bulk_csv(path: Path | str) -> dict[str, Any]:
+    """Read the AFDC bulk ELEC CSV into the same dict shape as the API JSON.
+
+    Returns a {"fuel_stations": [...]} dict so parse_stations and parse_ports
+    consume it without change. Connector types are split from the space separated
+    bulk string into a list. Only ELEC rows are kept.
+    """
+    df = pd.read_csv(path, low_memory=False)
+    if "Fuel Type Code" in df.columns:
+        df = df[df["Fuel Type Code"] == "ELEC"]
+
+    stations: list[dict[str, Any]] = []
+    for _, r in df.iterrows():
+        conn = r.get("EV Connector Types")
+        conn_list = str(conn).split() if pd.notna(conn) else []
+        station = {api: r.get(bulk) for bulk, api in BULK_TO_API.items()}
+        for num_field in ("ev_dc_fast_num", "ev_level2_evse_num"):
+            value = station.get(num_field)
+            station[num_field] = None if value is None or pd.isna(value) else value
+        station["ev_connector_types"] = conn_list
+        stations.append(station)
+    return {"fuel_stations": stations, "total_results": len(stations)}
+
+
 def write_snapshot(
     raw_bytes: bytes,
     cfg: Config,

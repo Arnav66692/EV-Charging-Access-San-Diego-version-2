@@ -1,0 +1,21 @@
+{
+  "compressed_byte_count": 58106985,
+  "endpoint": "https://services5.arcgis.com/z6hI6KRjKHvhNO0r/arcgis/rest/services/ICA_Layer/FeatureServer/2/query",
+  "license": "SCE DERiM Open Data. Redistributable. Attribution to Southern California Edison.",
+  "note": "Frozen for reproducibility. The SCE ICA layer refreshes monthly.",
+  "pull_date": "2026-06-28",
+  "pulled_at_utc": "2026-06-28T22:05:29Z",
+  "query_params": {
+    "f": "geojson",
+    "outFields": "*",
+    "outSR": "4326",
+    "page_size": 2000,
+    "where": "1=1"
+  },
+  "redistributable": true,
+  "row_count": 524522,
+  "sha256": "23fb95d5c93418434a16878ffe7812e136c4f84966141d1793867ecf7365a50d",
+  "snapshot_file": "sce_derim_ica_2026-06-28.geojson.gz",
+  "source": "SCE DERiM Integration Capacity Analysis load capacity layer",
+  "uncompressed_byte_count": 595955701
+}

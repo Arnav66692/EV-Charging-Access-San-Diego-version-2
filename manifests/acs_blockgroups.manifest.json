@@ -1,0 +1,34 @@
+{
+  "counties": [
+    "06073",
+    "06059",
+    "06037"
+  ],
+  "endpoint": "https://api.census.gov/data/2023/acs/acs5",
+  "geography": "block group",
+  "license": "Public domain, U.S. Census Bureau.",
+  "pulled_at_utc": "2026-06-28T21:57:01Z",
+  "redistributable": true,
+  "row_count": 10698,
+  "source": "Census American Community Survey 5 year",
+  "span": "5-year",
+  "span_years": "2019-2023",
+  "variables": [
+    "B01003_001E",
+    "B25003_001E",
+    "B25003_002E",
+    "B25003_003E",
+    "B25024_001E",
+    "B25024_002E",
+    "B25024_003E",
+    "B25024_004E",
+    "B25024_005E",
+    "B25024_006E",
+    "B25024_007E",
+    "B25024_008E",
+    "B25024_009E",
+    "B25024_010E",
+    "B25024_011E"
+  ],
+  "vintage": "2023"
+}

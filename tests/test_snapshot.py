@@ -7,6 +7,7 @@ import json
 from src.acquire.afdc import (
     parse_ports,
     parse_stations,
+    read_bulk_csv,
     verify_snapshot,
     write_snapshot,
 )
@@ -20,6 +21,36 @@ from src.utils import (
 )
 
 cfg = load_config()
+
+
+def test_read_bulk_csv_maps_schema_to_parser(tmp_path):
+    # The AFDC bulk CSV uses human readable headers that differ from the API JSON.
+    # read_bulk_csv must map them so parse_stations and parse_ports work unchanged.
+    csv = (
+        "Fuel Type Code,ID,Station Name,Latitude,Longitude,EV Network,Status Code,"
+        "Access Code,EV DC Fast Count,EV Level2 EVSE Num,EV Connector Types,State,City,ZIP\n"
+        "ELEC,1001,Both,32.7,-117.1,ChargePoint,E,public,4,8,CHADEMO J1772COMBO,CA,San Diego,92101\n"
+        "ELEC,1002,L2only,33.6,-117.8,EVConnect,E,public,,6,J1772,CA,Irvine,92606\n"
+        "LNG,9999,NotElec,34.0,-118.2,X,E,public,5,5,NA,CA,LA,90012\n"
+    )
+    path = tmp_path / "bulk.csv"
+    path.write_text(csv)
+
+    raw = read_bulk_csv(path)
+    # The non ELEC row is dropped.
+    assert len(raw["fuel_stations"]) == 2
+    stations = parse_stations(raw)
+    ports = parse_ports(raw)
+    assert set(stations["station_id"]) == {"1001", "1002"}
+
+    dcfc = ports[ports["port_class"] == "DCFC"]
+    l2 = ports[ports["port_class"] == "L2"]
+    # Station 1001 has both, 1002 has L2 only. "EV DC Fast Count" maps to DCFC.
+    assert set(dcfc["station_id"]) == {"1001"}
+    assert dcfc[dcfc["station_id"] == "1001"]["port_count"].iloc[0] == 4
+    assert set(l2["station_id"]) == {"1001", "1002"}
+    # Connector types split from the space separated bulk string.
+    assert "CHADEMO" in stations[stations["station_id"] == "1001"]["ev_connector_types"].iloc[0]
 
 
 def test_gzip_snapshot_roundtrip_and_stable_sha256(tmp_path):

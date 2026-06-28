@@ -69,3 +69,35 @@ def test_empty_grid_flags_all_unjoined(sample_candidates, sample_grid):
     assert len(result) == len(sample_candidates)
     assert result["joined_flag"].notna().all()
     assert not result["joined_flag"].any()
+
+
+def test_join_conserves_rows_on_non_contiguous_index(sample_candidates, sample_grid):
+    # Row-loss guard. A filtered, non-contiguous candidate index must not drop or
+    # misalign rows. This is the class of failure the centroid bug belonged to.
+    filtered = sample_candidates.drop(index=1)  # index becomes [0, 2, 3]
+    result = nearest_join_within(
+        filtered, sample_grid, 500.0, "EPSG:3310", "EPSG:4326"
+    )
+    assert len(result) == len(filtered)
+    assert set(result["candidate_id"]) == set(filtered["candidate_id"])
+    assert result["joined_flag"].notna().all()
+
+
+def test_join_raises_if_rows_dropped(monkeypatch, sample_candidates, sample_grid):
+    # If a future change makes the nearest join drop a candidate, the conservation
+    # guard must raise, not return a silently short frame.
+    import pytest
+
+    import src.join.candidate_grid_join as mod
+
+    real = mod.gpd.sjoin_nearest
+
+    def dropping(*args, **kwargs):
+        # Simulate a join that loses one candidate row.
+        return real(*args, **kwargs).iloc[:-1]
+
+    monkeypatch.setattr(mod.gpd, "sjoin_nearest", dropping)
+    with pytest.raises(ValueError, match="conserve rows"):
+        mod.nearest_join_within(
+            sample_candidates, sample_grid, 500.0, "EPSG:3310", "EPSG:4326"
+        )

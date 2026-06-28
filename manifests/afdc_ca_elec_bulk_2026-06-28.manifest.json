@@ -1,0 +1,14 @@
+{
+  "license": "Public domain, U.S. DOE AFDC. This product uses AFDC data, not endorsed by NREL.",
+  "note": "Developer API host developer.nrel.gov does not resolve on this network. The afdc.energy.gov bulk form serves the CSV via developer.nlr.gov, which does resolve.",
+  "pull_date": "2026-06-28",
+  "pulled_at_utc": "2026-06-28T23:19:07Z",
+  "redistributable": true,
+  "row_count": 21157,
+  "schema": "AFDC bulk CSV mapped to API field names, see src/acquire/afdc.py BULK_TO_API",
+  "sha256": "e09e05a4c280d78440546fc5caf5972178d78fb958ccd6697357f8cbe80b4b8d",
+  "snapshot_file": "afdc_ca_elec_bulk_2026-06-28.csv",
+  "source": "AFDC bulk CSV, afdc.energy.gov data download, fuel ELEC, state CA",
+  "source_url": "https://afdc.energy.gov/data_download (alt_fuel_stations, fuel ELEC, state CA, served via developer.nlr.gov/api/alt-fuel-stations/v1.csv)",
+  "uncompressed_byte_count": 7273536
+}

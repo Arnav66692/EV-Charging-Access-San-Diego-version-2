@@ -1,7 +1,7 @@
 {
   "atom": "2020 census block",
   "block_relationship_url": "https://www2.census.gov/geo/docs/maps-data/data/rel2020/t10t20/TAB2010_TAB2020_ST06.zip",
-  "built_at_utc": "2026-06-28T20:19:16Z",
+  "built_at_utc": "2026-06-28T21:58:48Z",
   "in_scope_counties": [
     "06037",
     "06059",

@@ -1,0 +1,18 @@
+{
+  "candidate_count": 44481,
+  "counties": [
+    "06073",
+    "06059",
+    "06037"
+  ],
+  "facility_types": [
+    "civic",
+    "park_and_ride",
+    "parking",
+    "retail"
+  ],
+  "license": "OpenStreetMap contributors, ODbL. Attribution required.",
+  "pulled_at_utc": "2026-06-28T22:13:13Z",
+  "redistributable": true,
+  "source": "OpenStreetMap via Overpass"
+}

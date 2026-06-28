@@ -23,6 +23,24 @@ osrm-data/
 .DS_Store
 
 # Interim scratch may be large and can hold SDG&E derived geometry, which is
-# input only. Processed outputs are committed deliberately, interim is not.
+# input only.
 data/interim/*
 !data/interim/.gitkeep
+
+# Snapshots are frozen for reproducibility but can be large, for example the SCE
+# layer is tens of MB. The reproducibility record is the manifest under
+# manifests/, which carries the sha256. Gitignore the large snapshot blobs.
+# Keep the small committed sample fixtures the tests verify. Use git-lfs if these
+# must be versioned.
+data/snapshots/*
+!data/snapshots/.gitkeep
+!data/snapshots/*sample*
+
+# Processed outputs are regenerable from the pipeline and some are large, for
+# example the SCE grid parquet is tens of MB. Track the manifests, not the blobs.
+data/processed/*.parquet
+data/processed/*.csv
+!data/processed/.gitkeep
+
+# Run logs.
+logs_*.txt
