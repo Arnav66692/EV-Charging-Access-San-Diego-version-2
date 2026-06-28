@@ -81,14 +81,15 @@ def geometric_centroids(block_group_polygons: gpd.GeoDataFrame) -> gpd.GeoDataFr
     Centroids are computed in EPSG:3310 so they are areal, then returned in
     EPSG:4326. The input needs a geoid_bg column and polygon geometry.
     """
-    polys = block_group_polygons.to_crs("EPSG:3310")
+    # Reset the index first. A non-contiguous input index would misalign the
+    # centroid GeoSeries against the plain column arrays and silently produce
+    # NaN geometries for unmatched rows.
+    polys = block_group_polygons.reset_index(drop=True).to_crs("EPSG:3310")
+    geoids = polys["geoid_bg"].astype(str).to_numpy()
     centroids = polys.geometry.centroid
     out = gpd.GeoDataFrame(
-        {
-            ORIGIN: block_group_polygons["geoid_bg"].astype(str).to_numpy(),
-            "geoid_bg": block_group_polygons["geoid_bg"].astype(str).to_numpy(),
-        },
-        geometry=centroids,
+        {ORIGIN: geoids, "geoid_bg": geoids},
+        geometry=centroids.to_numpy(),
         crs="EPSG:3310",
     ).to_crs("EPSG:4326")
     return out

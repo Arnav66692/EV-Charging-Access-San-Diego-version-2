@@ -94,3 +94,25 @@ def test_geometric_centroids_from_polygons():
     pt = out.geometry.iloc[0]
     assert -117.2 < pt.x < -117.1
     assert 32.7 < pt.y < 32.8
+
+
+def test_geometric_centroids_non_contiguous_index():
+    # Regression. A filtered, non-contiguous index must not misalign the centroid
+    # geometry against the geoid columns and leave NaN coordinates behind.
+    import numpy as np
+
+    polys = gpd.GeoDataFrame(
+        {"geoid_bg": ["060730001001", "060730001002", "060730001003"]},
+        geometry=[
+            Polygon([(-117.2, 32.7), (-117.1, 32.7), (-117.1, 32.8), (-117.2, 32.8)]),
+            Polygon([(-117.1, 32.7), (-117.0, 32.7), (-117.0, 32.8), (-117.1, 32.8)]),
+            Polygon([(-117.0, 32.7), (-116.9, 32.7), (-116.9, 32.8), (-117.0, 32.8)]),
+        ],
+        crs="EPSG:4326",
+    )
+    # Drop the middle row so the index becomes [0, 2], non-contiguous.
+    out = geometric_centroids(polys.drop(index=1))
+    assert len(out) == 2
+    assert list(out["geoid_bg"]) == ["060730001001", "060730001003"]
+    assert np.isfinite(out.geometry.x).all()
+    assert np.isfinite(out.geometry.y).all()

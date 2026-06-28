@@ -73,7 +73,10 @@ def _classify(tags: dict[str, Any]) -> str:
 
 def fetch_overpass(query: str, cfg: Config) -> dict[str, Any]:
     response = requests.post(
-        cfg["osm"]["overpass_url"], data={"data": query}, timeout=REQUEST_TIMEOUT_S
+        cfg["osm"]["overpass_url"],
+        data={"data": query},
+        headers={"User-Agent": "ev-grid-siting/1.0 (research, contact via repo)"},
+        timeout=REQUEST_TIMEOUT_S,
     )
     response.raise_for_status()
     return response.json()

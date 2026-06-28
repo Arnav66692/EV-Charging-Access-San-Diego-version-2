@@ -116,8 +116,10 @@ sdge_ica:
     ["LoadCapacity", "Load_Capacity", "ICA_Load_MW", "Load_MW", "Pload"]
 
 # OSM candidate sites. Public facilities suitable for charging deployment.
+# The lz4 mirror is used because the main overpass-api.de host returns 406 from
+# its WAF for scripted requests. The mirror serves the same OSM data.
 osm:
-  overpass_url: "https://overpass-api.de/api/interpreter"
+  overpass_url: "https://lz4.overpass-api.de/api/interpreter"
   timeout_s: 180
   # Tag filters that define candidate facility types.
   candidate_filters:
