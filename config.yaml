@@ -1,0 +1,143 @@
+# Phase 1 configuration for grid-constrained, equity-aware EV fast-charging siting.
+# FIPS codes are strings. Leading zeros are preserved. They are quoted here so the
+# YAML parser never reads them as octal or strips a zero.
+
+project:
+  name: ev-grid-siting
+  phase: 1
+
+# Coordinate reference systems.
+# Geometries are stored in EPSG:4326. All distance and join work projects to
+# EPSG:3310, California Albers, which is an equal-area meters CRS.
+crs:
+  storage: "EPSG:4326"
+  working: "EPSG:3310"
+
+# Scope. Three in-scope counties across two utility territories.
+# SDG&E serves San Diego County. SCE serves Orange and Los Angeles counties.
+# The City of Los Angeles core served by LADWP is out of scope. See README.
+counties:
+  san_diego: "06073"
+  orange: "06059"
+  los_angeles: "06037"
+
+territories:
+  sdge:
+    name: "San Diego Gas and Electric"
+    counties: ["06073"]
+    grid_source: "sdge_ica"
+  sce:
+    name: "Southern California Edison"
+    counties: ["06059", "06037"]
+    grid_source: "sce_derim"
+
+# Catchment radii for the later accessibility phase. Stored now, not used in Phase 1.
+catchment_radii_miles:
+  dcfc: 6.0
+  l2: 2.0
+
+# Join thresholds, in meters, applied in EPSG:3310.
+# A candidate site joins to the nearest grid line section within this distance.
+# Beyond it the candidate is flagged unjoined rather than forced onto a far section.
+join:
+  max_snap_distance_m: 500.0
+
+# AFDC, the NREL Alternative Fuel Data Center stations API.
+afdc:
+  base_url: "https://developer.nrel.gov/api/alt-fuel-stations/v1.json"
+  fuel_type: "ELEC"
+  state: "CA"
+  status: "all"
+  access: "all"
+  api_key_env: "NREL_API_KEY"
+
+# ACS, the Census American Community Survey 5 year, block group level.
+# Vintage 2023 means the 2019 to 2023 five year release.
+acs:
+  base_url: "https://api.census.gov/data"
+  vintage: "2023"
+  dataset: "acs/acs5"
+  span: "5-year"
+  span_years: "2019-2023"
+  geography: "block group"
+  api_key_env: "CENSUS_API_KEY"
+  variables:
+    total_population: ["B01003_001E"]
+    tenure: ["B25003_001E", "B25003_002E", "B25003_003E"]
+    units_in_structure:
+      ["B25024_001E", "B25024_002E", "B25024_003E", "B25024_004E",
+       "B25024_005E", "B25024_006E", "B25024_007E", "B25024_008E",
+       "B25024_009E", "B25024_010E", "B25024_011E"]
+
+# CalEnviroScreen 4.0 disadvantaged community layer.
+# CES 4.0 is published on 2010 census tracts. It is crosswalked to 2020 tracts
+# with the Census 2010 to 2020 tract relationship file, population weighted.
+ces:
+  oehha_url: "https://oehha.ca.gov/calenviroscreen/report/calenviroscreen-40"
+  tract_vintage_source: "2010"
+  tract_vintage_target: "2020"
+  dac_percentile_threshold: 75.0
+  crosswalk_relationship_url: "https://www2.census.gov/geo/docs/maps-data/data/rel2020/tract/tab20_tract20_tract10_natl.txt"
+  weighting: "population"
+
+# SCE DERiM grid layer, the ICA load capacity layer, redistributable.
+# The live layer is the ICA Circuit Segments polyline layer on the DERiM site,
+# confirmed from the site data.json catalog. Layer 2 of the ICA_Layer service.
+#
+# Load field. ica_overall_load is the binding minimum load hosting value in MW.
+# It is the overall ICA load result, the most limiting power system criterion at
+# the most limiting hour. There is no Op Flex load variant on this layer. Op Flex
+# applies only to generation. See docs/grid_fields.md for the full confirmation.
+#
+# Limiting factor. most_limiting_factor on this layer is generation oriented. All
+# 505155 non null values are "Generation - ..." and there are zero "Load - ..."
+# values. It is captured as generation_limiting_factor, not as a load limitation.
+# The load side limiting factor is not published on this layer.
+# maxRecordCount on this service is 2000.
+sce_derim:
+  base_url: "https://drpep-sce2.opendata.arcgis.com"
+  feature_server_url: "https://services5.arcgis.com/z6hI6KRjKHvhNO0r/arcgis/rest/services/ICA_Layer/FeatureServer/2/query"
+  page_size: 2000
+  out_fields: "*"
+  load_capacity_field: "ica_overall_load"
+  load_capacity_field_candidates:
+    ["ica_overall_load", "LoadCapacity", "Load_Capacity", "ICA_Load_MW", "Load_MW", "Pload"]
+  generation_limiting_field_candidates:
+    ["most_limiting_factor", "Limitation", "Limiting_Factor", "LimitCategory"]
+
+# SDG&E ICA grid layer. Input only, not redistributable.
+# The raw file is gated behind a free SDG&E account. The user downloads it and
+# drops it at the path below, or overrides with the SDGE_ICA_PATH env var.
+sdge_ica:
+  raw_path: "data/raw/sdge_ica.geojson"
+  raw_path_env: "SDGE_ICA_PATH"
+  redistributable: false
+  load_capacity_field_candidates:
+    ["LoadCapacity", "Load_Capacity", "ICA_Load_MW", "Load_MW", "Pload"]
+
+# OSM candidate sites. Public facilities suitable for charging deployment.
+osm:
+  overpass_url: "https://overpass-api.de/api/interpreter"
+  timeout_s: 180
+  # Tag filters that define candidate facility types.
+  candidate_filters:
+    parking: 'node["amenity"="parking"]'
+    parking_way: 'way["amenity"="parking"]'
+    civic: 'way["amenity"~"townhall|library|community_centre"]'
+    retail: 'way["shop"="supermarket"]'
+    park_and_ride: 'node["park_ride"]'
+
+# OSRM routing. California car profile served by a local OSRM instance.
+osrm:
+  base_url_env: "OSRM_BASE_URL"
+  default_base_url: "http://localhost:5000"
+  profile: "car"
+  geofabrik_extract_url: "https://download.geofabrik.de/north-america/us/california-latest.osm.pbf"
+
+# Output layout.
+paths:
+  raw: "data/raw"
+  interim: "data/interim"
+  processed: "data/processed"
+  snapshots: "data/snapshots"
+  manifests: "manifests"

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+.env
+
+# Raw data is input only. Nothing under data/raw is redistributable.
+# The SDG&E ICA layer is gated and must never be committed. The directory is
+# kept via its .gitkeep, but every real file in it is ignored.
+data/raw/*
+!data/raw/.gitkeep
+
+# Large routing inputs and build artifacts.
+*.osm.pbf
+*.osrm
+*.osrm.*
+osrm-data/
+
+# OS noise
+.DS_Store
+
+# Interim scratch may be large and can hold SDG&E derived geometry, which is
+# input only. Processed outputs are committed deliberately, interim is not.
+data/interim/*
+!data/interim/.gitkeep

@@ -1,0 +1,19 @@
+{
+  "byte_count": 1881,
+  "endpoint": "https://developer.nrel.gov/api/alt-fuel-stations/v1.json",
+  "license": "Public domain, U.S. Department of Energy. Attribution requested.",
+  "note": "Sample snapshot committed as a fixture. A real pull writes a dated file. AFDC changes daily.",
+  "pull_date": "2026-06-28",
+  "pulled_at_utc": "2026-06-28T00:00:00Z",
+  "query_params": {
+    "access": "all",
+    "fuel_type": "ELEC",
+    "limit": "all",
+    "state": "CA",
+    "status": "all"
+  },
+  "redistributable": true,
+  "sha256": "bb844a871d536220e6bcc99c5e862c1b620c9aeed9172eb96d67677b38a557b8",
+  "snapshot_file": "afdc_ca_elec_sample.json",
+  "source": "AFDC NREL Alternative Fuel Data Center"
+}
