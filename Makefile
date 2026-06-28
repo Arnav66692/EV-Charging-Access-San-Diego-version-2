@@ -6,6 +6,7 @@ PIP := .venv/bin/pip
 
 .PHONY: help venv install test \
         afdc acs ces ces-relationship sce sdge osm join \
+        access-centroids access-lodes access-gate access-primary \
         osrm-download osrm-build osrm-serve osrm-smoke clean
 
 help:
@@ -21,6 +22,10 @@ help:
 	@echo "  sdge           read the user-dropped SDG&E ICA grid layer"
 	@echo "  osm            pull OSM candidate sites"
 	@echo "  join           join candidates to grid per territory"
+	@echo "  access-centroids  build population weighted block group centroids"
+	@echo "  access-lodes      build the LODES WAC DCFC demand layer"
+	@echo "  access-gate       run the v1-compat San Diego gate, euclidean, no Docker"
+	@echo "  access-primary    run primary drive time surfaces, needs live OSRM"
 	@echo "  osrm-download  fetch the California OSM extract"
 	@echo "  osrm-build     build the OSRM car profile with Docker"
 	@echo "  osrm-serve     serve OSRM on port 5000"
@@ -59,6 +64,18 @@ osm:
 
 join:
 	$(PY) -m src.join.candidate_grid_join
+
+access-centroids:
+	$(PY) -m src.access.centroids
+
+access-lodes:
+	$(PY) -m src.access.demand
+
+access-gate:
+	$(PY) -m src.access.run
+
+access-primary:
+	$(PY) -c "from src.access.run import run_primary; run_primary()"
 
 osrm-download:
 	bash scripts/build_osrm.sh download

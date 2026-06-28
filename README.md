@@ -241,8 +241,54 @@ OpenStreetMap, and SCE DERiM are redistributable. The SDG&E ICA layer is input
 only and is gitignored. See LICENSING.md for the per source terms and attribution
 strings.
 
-## What Phase 1 does not do
+## Phase 2, accessibility engine
 
-Phase 1 stops at acquisition, the join, and routing. It does not build the
-accessibility scoring, the queueing model, or the siting optimizer. Those are
-Phase 2 and later.
+Phase 2 computes EV charging accessibility per block group, using the SFCA
+family and type differentiated demand. It produces accessibility surfaces and
+the descriptive DAC access ratio. It does not build the queueing supply model,
+the grid feasibility join, or the siting optimizer. Those are later phases.
+
+The travel cost layer is separate from the math. The SFCA engine is pure and
+tests with no OSRM and no Docker. Code is under src/access. Full method notes are
+in docs/methods_accessibility.md.
+
+Two run modes.
+
+- v1-compat gate. Euclidean backend, v1 radii, geometric centroids, G2SFCA,
+  residential demand. Reproduces v1's San Diego DCFC result. Needs no Docker.
+- primary. OSRM drive time, type differentiated thresholds, population weighted
+  centroids, all three SFCA methods, residential plus the LODES demand
+  sensitivity. The live drive time run waits on the user's Docker.
+
+Time thresholds differ by charger type. The default is 15 minutes for DCFC and 7
+minutes for L2. Fast charging serves longer trips. L2 is local. The threshold
+sweep is Phase 4.
+
+Phase 2 data and run targets.
+
+```
+make access-centroids  # population weighted centroids from the centers of population file
+make access-lodes      # the LODES WAC DCFC demand sensitivity layer
+make access-gate       # the v1-compat San Diego gate, euclidean, no Docker
+make access-primary    # primary drive time surfaces, needs live OSRM
+```
+
+The centroid and demand layers need no API key. The gate and the primary run read
+the Phase 1 processed tables, so run the Phase 1 steps first. The primary run also
+needs the Phase 1 OSRM instance.
+
+New outputs under data/processed.
+
+- blockgroup_centroids.parquet
+- demand_lodes_wac.parquet
+- access_primary_drive_time.parquet, tidy access surfaces keyed to the snapshot
+- dac_access_ratio_primary.parquet
+
+The gate result is written to manifests/access_v1_gate.json.
+
+## What Phase 2 does not do
+
+Phase 2 stops at the accessibility surfaces and the descriptive DAC ratio. It
+does not build the queueing supply model, the grid feasibility join, or the
+siting optimizer. It does not run the bootstrap, the renter and multifamily
+contrasts, or the robustness sweeps. Those are Phase 3 and Phase 4.

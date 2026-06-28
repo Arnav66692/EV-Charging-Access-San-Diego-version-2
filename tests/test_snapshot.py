@@ -11,9 +11,28 @@ from src.acquire.afdc import (
     write_snapshot,
 )
 from src.config import load_config
-from src.utils import read_manifest, sha256_file
+from src.utils import (
+    read_gzip_snapshot,
+    read_manifest,
+    sha256_bytes,
+    sha256_file,
+    write_gzip_snapshot,
+)
 
 cfg = load_config()
+
+
+def test_gzip_snapshot_roundtrip_and_stable_sha256(tmp_path):
+    # The SCE and SDG&E freeze write gzip snapshots and record the sha256 of the
+    # uncompressed content. The content must round trip, and the digest must be
+    # stable across two writes of the same bytes.
+    payload = b'{"type":"FeatureCollection","features":[1,2,3]}'
+    p1 = write_gzip_snapshot(tmp_path / "a.geojson.gz", payload)
+    p2 = write_gzip_snapshot(tmp_path / "b.geojson.gz", payload)
+    assert read_gzip_snapshot(p1) == payload
+    assert sha256_bytes(read_gzip_snapshot(p1)) == sha256_bytes(payload)
+    # Pinned gzip header means identical content yields identical containers.
+    assert p1.read_bytes() == p2.read_bytes()
 
 
 def test_committed_snapshot_matches_recorded_sha256():

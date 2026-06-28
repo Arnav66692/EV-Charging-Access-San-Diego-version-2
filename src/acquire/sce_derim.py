@@ -11,6 +11,7 @@ limitation. See docs/grid_fields.md. This layer is redistributable.
 
 from __future__ import annotations
 
+import json
 from typing import Any, Iterator
 
 import geopandas as gpd
@@ -18,7 +19,14 @@ import pandas as pd
 import requests
 
 from src.config import Config, load_config
-from src.utils import ensure_dir, utc_now_iso, write_manifest
+from src.utils import (
+    ensure_dir,
+    sha256_bytes,
+    utc_date,
+    utc_now_iso,
+    write_gzip_snapshot,
+    write_manifest,
+)
 
 REQUEST_TIMEOUT_S = 180
 
@@ -118,10 +126,55 @@ def normalize(gdf: gpd.GeoDataFrame, cfg: Config) -> gpd.GeoDataFrame:
     return out
 
 
+def freeze_snapshot(cfg: Config, geojson: dict[str, Any]) -> dict[str, Any]:
+    """Freeze the raw SCE GeoJSON to a dated gzip snapshot with a sha256.
+
+    The SCE layer refreshes monthly, so the pull is frozen for reproducibility,
+    the same as AFDC. The snapshot is tracked because this layer is
+    redistributable. The sha256 is of the uncompressed content.
+    """
+    raw_bytes = json.dumps(geojson, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    pull_date = utc_date()
+    snap_dir = ensure_dir(cfg.path("snapshots"))
+    snapshot_path = snap_dir / f"sce_derim_ica_{pull_date}.geojson.gz"
+    write_gzip_snapshot(snapshot_path, raw_bytes)
+
+    manifest = {
+        "source": "SCE DERiM Integration Capacity Analysis load capacity layer",
+        "endpoint": cfg["sce_derim"].get("feature_server_url", ""),
+        "query_params": {
+            "where": "1=1",
+            "outFields": cfg["sce_derim"]["out_fields"],
+            "outSR": "4326",
+            "f": "geojson",
+            "page_size": int(cfg["sce_derim"]["page_size"]),
+        },
+        "pull_date": pull_date,
+        "pulled_at_utc": utc_now_iso(),
+        "snapshot_file": snapshot_path.name,
+        "row_count": int(len(geojson.get("features", []))),
+        "sha256": sha256_bytes(raw_bytes),
+        "uncompressed_byte_count": len(raw_bytes),
+        "compressed_byte_count": int(snapshot_path.stat().st_size),
+        "license": "SCE DERiM Open Data. Redistributable. Attribution to Southern California Edison.",
+        "redistributable": True,
+        "note": "Frozen for reproducibility. The SCE ICA layer refreshes monthly.",
+    }
+    write_manifest(
+        cfg.path("manifests") / f"sce_derim_ica_{pull_date}.manifest.json", manifest
+    )
+    return manifest
+
+
 def run(cfg: Config | None = None) -> gpd.GeoDataFrame:
-    """Pull the SCE DERiM layer and write processed/sce_derim_grid.parquet."""
+    """Pull the SCE DERiM layer, freeze it, and write processed/sce_derim_grid.parquet."""
     cfg = cfg or load_config()
     geojson = fetch_all(cfg)
+
+    # Freeze the raw pull first, so the snapshot and sha256 exist before any
+    # parsing. The SCE layer refreshes, so results would not reproduce otherwise.
+    snap_manifest = freeze_snapshot(cfg, geojson)
+
     gdf = gpd.GeoDataFrame.from_features(geojson["features"], crs=cfg.crs_storage)
     gdf = normalize(gdf, cfg)
 
@@ -137,12 +190,17 @@ def run(cfg: Config | None = None) -> gpd.GeoDataFrame:
         "generation_limiting_field": (
             gdf["source_generation_limiting_field"].iloc[0] if len(gdf) else None
         ),
+        "snapshot_file": snap_manifest["snapshot_file"],
+        "snapshot_sha256": snap_manifest["sha256"],
         "pulled_at_utc": utc_now_iso(),
         "license": "SCE DERiM Open Data. Redistributable. Attribution to Southern California Edison.",
         "redistributable": True,
     }
     write_manifest(cfg.path("manifests") / "sce_derim_grid.manifest.json", manifest)
-    print(f"SCE DERiM: {len(gdf)} line sections")
+    print(
+        f"SCE DERiM: {len(gdf)} line sections, frozen to {snap_manifest['snapshot_file']} "
+        f"sha256 {snap_manifest['sha256'][:12]}..."
+    )
     return gdf
 
 

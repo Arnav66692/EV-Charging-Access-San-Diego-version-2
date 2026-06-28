@@ -18,7 +18,14 @@ import pandas as pd
 
 from src.acquire.sce_derim import identify_field
 from src.config import Config, load_config
-from src.utils import ensure_dir, utc_now_iso, write_manifest
+from src.utils import (
+    ensure_dir,
+    sha256_bytes,
+    utc_date,
+    utc_now_iso,
+    write_gzip_snapshot,
+    write_manifest,
+)
 
 REDISTRIBUTABLE = False
 
@@ -78,18 +85,38 @@ def run(cfg: Config | None = None) -> gpd.GeoDataFrame:
     out_path = interim / "sdge_ica_grid.parquet"
     gdf.to_parquet(out_path)
 
+    # Freeze the SDG&E pull like AFDC and SCE, so a refresh of the source map does
+    # not break reproduction. The snapshot holds derived geometry, so it is
+    # written to the gitignored interim path, the same as the raw input. The
+    # manifest is metadata only, no geometry, so it is safe to track.
+    pull_date = utc_date()
+    raw_bytes = gdf.to_json(drop_id=True).encode("utf-8")
+    snapshot_path = interim / f"sdge_ica_{pull_date}.geojson.gz"
+    write_gzip_snapshot(snapshot_path, raw_bytes)
+
     manifest = {
         "source": "SDG&E Integration Capacity Analysis load capacity layer",
         "input_path": str(resolve_raw_path(cfg)),
         "feature_count": int(len(gdf)),
+        "row_count": int(len(gdf)),
         "load_field": gdf["source_load_field"].iloc[0] if len(gdf) else None,
+        "pull_date": pull_date,
         "read_at_utc": utc_now_iso(),
+        "snapshot_file": snapshot_path.name,
+        "sha256": sha256_bytes(raw_bytes),
+        "uncompressed_byte_count": len(raw_bytes),
         "license": "SDG&E ICA map. Input only. NOT redistributable. Gated behind a free account.",
         "redistributable": False,
-        "note": "Raw and derived geometry stay gitignored. Only feasibility flags are shareable.",
+        "note": (
+            "Raw and derived geometry stay gitignored, including the snapshot. "
+            "Only the manifest metadata and downstream feasibility flags are shareable."
+        ),
     }
     write_manifest(cfg.path("manifests") / "sdge_ica_grid.manifest.json", manifest)
-    print(f"SDG&E ICA: {len(gdf)} line sections read, written to gitignored interim")
+    print(
+        f"SDG&E ICA: {len(gdf)} line sections read, frozen to gitignored "
+        f"{snapshot_path.name} sha256 {sha256_bytes(raw_bytes)[:12]}..."
+    )
     return gdf
 
 

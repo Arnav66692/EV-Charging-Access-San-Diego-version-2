@@ -134,6 +134,58 @@ osrm:
   profile: "car"
   geofabrik_extract_url: "https://download.geofabrik.de/north-america/us/california-latest.osm.pbf"
 
+# Phase 2 accessibility engine.
+access:
+  # Primary travel mode is drive_time via OSRM. The v1-compat gate uses euclidean.
+  travel_mode: "drive_time"
+
+  # Time thresholds differ by charger type and are pre-specified, not swept here.
+  # DCFC serves longer trips, so it gets a wider time budget. L2 is local.
+  # The threshold sweep is Phase 4. See docs/methods_accessibility.md.
+  thresholds:
+    drive_time_minutes:
+      dcfc: 15.0
+      l2: 7.0
+    # v1 radii, straight line miles, used only by the v1-compat gate.
+    euclidean_miles:
+      dcfc: 6.0
+      l2: 2.0
+
+  # Centroid mode. population_weighted for primary, geometric for the v1-compat gate.
+  centroid_mode: "population_weighted"
+  centers_of_population:
+    # State file is parameterised by the two digit state FIPS, 06 for California.
+    blkgrp_url_template: "https://www2.census.gov/geo/docs/reference/cenpop2020/blkgrp/CenPop2020_Mean_BG{state}.txt"
+
+  # KD-tree prefilter. Network distance is always at least Euclidean distance, so a
+  # Euclidean buffer at a generous upper bound speed can never drop a reachable
+  # pair. 70 mph is the upper bound. Only prefiltered pairs are routed.
+  prefilter:
+    upper_bound_speed_mph: 70.0
+
+  # SFCA methods and decay parameters.
+  sfca:
+    methods: ["g2sfca", "e2sfca", "3sfca"]
+    # E2SFCA discrete zones, Luo and Qi 2009. Breaks are fractions of the
+    # threshold. Weights are Gaussian derived. Outer zone gets the least weight.
+    e2sfca:
+      zone_breaks: [0.3333, 0.6667, 1.0]
+      zone_weights: [1.0, 0.68, 0.22]
+
+  # Demand layers. Residential is the L2 demand and the primary DCFC demand.
+  # LODES workplace jobs is the pre-specified DCFC demand sensitivity.
+  demand:
+    l2: "residential"
+    dcfc_primary: "residential"
+    dcfc_sensitivity: "lodes_wac"
+
+# LODES LEHD workplace area characteristics, WAC, block level, no API key.
+lodes:
+  wac_url_template: "https://lehd.ces.census.gov/data/lodes/LODES8/{state_abbr}/wac/{state_abbr}_wac_S000_JT00_{year}.csv.gz"
+  state_abbr: "ca"
+  year: "2021"
+  jobs_field: "C000"
+
 # Output layout.
 paths:
   raw: "data/raw"

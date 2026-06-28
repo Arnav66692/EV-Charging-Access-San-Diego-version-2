@@ -6,6 +6,7 @@ in heavy geospatial code unless it needs to.
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -57,3 +58,25 @@ def write_manifest(path: Path, manifest: dict[str, Any]) -> Path:
 def read_manifest(path: Path) -> dict[str, Any]:
     with open(path, "r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def write_gzip_snapshot(path: Path, raw_bytes: bytes) -> Path:
+    """Write raw bytes to a gzip snapshot with a fixed header for reproducibility.
+
+    The gzip header mtime is pinned to 0 so the same content yields the same
+    container. Record the sha256 of the uncompressed content, not the container,
+    so the digest is stable regardless of compression details.
+    """
+    ensure_dir(path.parent)
+    with open(path, "wb") as handle:
+        # filename="" stops gzip embedding the output file name in the header, so
+        # the container depends only on the content, not the snapshot path.
+        with gzip.GzipFile(filename="", mode="wb", fileobj=handle, mtime=0) as gz:
+            gz.write(raw_bytes)
+    return path
+
+
+def read_gzip_snapshot(path: Path) -> bytes:
+    """Read back the uncompressed bytes of a gzip snapshot."""
+    with gzip.open(path, "rb") as handle:
+        return handle.read()
