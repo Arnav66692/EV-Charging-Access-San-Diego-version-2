@@ -155,13 +155,26 @@ is N for every row and the load value is non null for all 495326 segments, so no
 segment is redacted in this snapshot. Redaction handling is still applied in the
 classifier, it just finds nothing to flag here.
 
-## Open item, geometry not in the provided export
+## Geometry source
 
-The provided files are attribute and time series exports only. The Load Capacity
-Grids CSV has OBJECTID, LINE_SEGMENT_NUMBER, CIRCUIT_NAME, and the load fields,
-plus Shape__Area and Shape__Length, but no geometry column. The companion zip is
-645 per circuit hourly result CSVs, also without coordinates. The SDG&E ICA layer
-is not on public ArcGIS Online, it is gated. So the candidate to grid spatial
-join cannot run until a geometry bearing export is provided, a GeoJSON or a
-shapefile of the Load Capacity Grids layer carrying the polygon geometry and the
-ICAWNOF_UNILOAD field. The load field and its SCE mapping are confirmed and ready.
+The first SDG&E export was attribute only, the Load Capacity Grids CSV had the
+load fields but no geometry column. The geometry was then pulled from the SDG&E
+Load Capacity Grids ArcGIS FeatureServer, the same way the SCE DERiM layer was
+pulled, paginated with geometry until exhausted. The service is
+
+  services.arcgis.com/S0EUI1eVapjRPS5e ICA_MAP_PROD_LoadCapacityGrids_VW FeatureServer 0
+
+The layer is esriGeometryPolygon, 495326 grid cells, ICAWNOF_UNILOAD present. The
+pulled layer matches the CSV row count exactly. The geometry is input only and
+gitignored, the same as the SCE snapshot is not, because SDG&E prohibits
+redistribution while SCE does not. See src/acquire/sdge_ica.py fetch_arcgis.
+
+## Coverage, no municipal utility hole
+
+SDG&E is the sole distribution utility for San Diego County, so there is no
+LADWP style coverage hole like the one in Los Angeles. The San Diego candidates
+sit very close to a grid cell, the median distance to the nearest cell is about 7
+meters and 96 percent are within 500 meters. Only about 1 percent of San Diego
+candidates have zero SDG&E cells within 2 kilometers, versus 69 percent for the
+LADWP served part of LA. So San Diego capacity_unknown is low, about 4 percent,
+and it is all no section within threshold, none redacted.

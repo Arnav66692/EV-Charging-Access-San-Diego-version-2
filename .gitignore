@@ -44,3 +44,6 @@ data/processed/*.csv
 
 # Run logs.
 logs_*.txt
+
+# SDG&E is input-only. Its manifest stays gitignored too, not just the data.
+manifests/sdge_*

@@ -70,3 +70,30 @@ def test_row_conservation():
     assert set(out["candidate_id"]) == set(joined["candidate_id"])
     # Every input candidate appears exactly once in the output.
     assert out["candidate_id"].is_unique
+
+
+def test_sdge_feasibility_conserves_and_no_null_feasible():
+    # The SDG&E feasibility join uses the same classifier as SCE. Confirm on a
+    # SDG&E style frame, San Diego county, with a redacted null capacity cell,
+    # that rows are conserved and a null capacity cell is never marked feasible.
+    sdge = pd.DataFrame(
+        {
+            "candidate_id": ["sd1", "sd2", "sd3", "sd4"],
+            "county_fips": ["06073", "06073", "06073", "06073"],
+            "joined_flag": [True, True, True, False],
+            "load_capacity_mw": [3.0, 0.5, None, None],  # sd3 redacted, sd4 no cell
+        }
+    )
+    out = classify_feasibility(sdge, TIERS).set_index("candidate_id")
+    # Row conservation, one row per candidate.
+    assert len(out) == len(sdge)
+    assert out.index.is_unique
+    # The null capacity cell and the no cell candidate are unknown, never feasible.
+    for cid in ("sd3", "sd4"):
+        assert bool(out.loc[cid, "capacity_unknown"]) is True
+        for tier in TIERS:
+            assert pd.isna(out.loc[cid, f"feasible_{tier}"])
+    # The ample cell is feasible at every tier, the small one only at small.
+    assert bool(out.loc["sd1", "feasible_large"]) is True
+    assert bool(out.loc["sd2", "feasible_small"]) is True
+    assert bool(out.loc["sd2", "feasible_large"]) is False

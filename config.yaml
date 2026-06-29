@@ -112,8 +112,15 @@ sdge_ica:
   raw_path: "data/raw/sdge_ica.geojson"
   raw_path_env: "SDGE_ICA_PATH"
   redistributable: false
+  # SDG&E Load Capacity Grids ArcGIS FeatureServer, polygon grid cells. Public
+  # endpoint pointer only. The pulled layer is input only and gitignored. The
+  # load field ICAWNOF_UNILOAD is the SDG&E analogue of SCE ica_overall_load, the
+  # uniform load without operational flexibility. See docs/grid_fields.md.
+  feature_server_url: "https://services.arcgis.com/S0EUI1eVapjRPS5e/arcgis/rest/services/ICA_MAP_PROD_LoadCapacityGrids_VW/FeatureServer/0/query"
+  page_size: 2000
+  out_fields: "OBJECTID,ICAWNOF_UNILOAD,ICAWOF_UNILOAD,RESTRICTED,CIRCUIT_NAME,VOLTAGE"
   load_capacity_field_candidates:
-    ["LoadCapacity", "Load_Capacity", "ICA_Load_MW", "Load_MW", "Pload"]
+    ["ICAWNOF_UNILOAD", "ICAWOF_UNILOAD", "LoadCapacity", "Load_Capacity", "ICA_Load_MW"]
 
 # OSM candidate sites. Public facilities suitable for charging deployment.
 # The lz4 mirror is used because the main overpass-api.de host returns 406 from

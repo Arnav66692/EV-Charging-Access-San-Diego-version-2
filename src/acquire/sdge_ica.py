@@ -39,14 +39,50 @@ def resolve_raw_path(cfg: Config) -> Path:
     return (cfg.root / cfg["sdge_ica"]["raw_path"]).resolve()
 
 
+def fetch_arcgis(cfg: Config) -> Path:
+    """Pull the SDG&E Load Capacity Grids layer from its ArcGIS FeatureServer.
+
+    Paginated the same way as the SCE DERiM layer, with geometry, f geojson, until
+    exhausted. Writes the raw GeoJSON to the gitignored raw path. The layer is
+    input only and is never committed or redistributed. Returns the written path.
+    """
+    import json
+
+    from src.acquire.sce_derim import paginate_features
+
+    url = cfg["sdge_ica"].get("feature_server_url", "")
+    if not url:
+        raise RuntimeError("sdge_ica.feature_server_url is not set in config.yaml")
+    page_size = int(cfg["sdge_ica"].get("page_size", 2000))
+    out_fields = cfg["sdge_ica"].get("out_fields", "*")
+
+    features: list = []
+    for page in paginate_features(url, page_size, out_fields):
+        features.extend(page.get("features", []))
+    fc = {"type": "FeatureCollection", "features": features}
+
+    dest = resolve_raw_path(cfg)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(fc), encoding="utf-8")
+    print(f"SDG&E ICA: pulled {len(features)} grid cells to gitignored {dest.name}")
+    return dest
+
+
 def load(cfg: Config) -> gpd.GeoDataFrame:
-    """Read the user-provided SDG&E file. Supports any format geopandas reads."""
+    """Read the SDG&E file. Supports any format geopandas reads.
+
+    If the file is absent and a feature_server_url is configured, the layer is
+    pulled from ArcGIS first. The pulled file is input only and gitignored.
+    """
     path = resolve_raw_path(cfg)
+    if not path.exists() and cfg["sdge_ica"].get("feature_server_url"):
+        fetch_arcgis(cfg)
     if not path.exists():
         raise FileNotFoundError(
             f"SDG&E ICA file not found at {path}. Download it from the SDG&E ICA "
             f"map with a free account and drop it there, or set the "
-            f"{cfg['sdge_ica']['raw_path_env']} env var. See README."
+            f"{cfg['sdge_ica']['raw_path_env']} env var, or set "
+            f"sdge_ica.feature_server_url in config. See README."
         )
     gdf = gpd.read_file(path)
     if gdf.crs is None:
@@ -114,7 +150,7 @@ def run(cfg: Config | None = None) -> gpd.GeoDataFrame:
     }
     write_manifest(cfg.path("manifests") / "sdge_ica_grid.manifest.json", manifest)
     print(
-        f"SDG&E ICA: {len(gdf)} line sections read, frozen to gitignored "
+        f"SDG&E ICA: {len(gdf)} grid cells read, frozen to gitignored "
         f"{snapshot_path.name} sha256 {sha256_bytes(raw_bytes)[:12]}..."
     )
     return gdf
