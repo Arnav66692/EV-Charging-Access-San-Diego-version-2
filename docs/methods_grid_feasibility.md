@@ -21,6 +21,15 @@ site credit for load diversity it may not have. A later phase could relax it wit
 a stated diversity factor below one, which would lower the MW requirement and
 raise feasibility shares.
 
+Diversity factor note. The 1.0 full simultaneity assumption is deliberately
+conservative. Real charging sites rarely see every port at rated peak at the same
+instant, so operators apply a diversity factor below one when sizing service. A
+factor of, say, 0.6 would cut each tier requirement to 0.18, 0.36, and 1.68 MW
+and would raise the feasible shares. The tier requirements are not changed here.
+A diversity sensitivity, sweeping the factor and reporting how feasibility shares
+move, is deferred to Phase 4. For now the reported shares are a conservative
+lower bound on feasibility.
+
 ## Classification
 
 Each candidate is already joined to its nearest SCE line section within the snap
@@ -63,3 +72,30 @@ interconnection request."
 San Diego is not included. The SDG&E load capacity layer is gated and not in
 hand, so SDG&E territory candidates cannot be classified. This is a stated
 coverage gap, the cross county result covers Orange and Los Angeles only.
+
+## Coverage diagnostic, Phase 3.5
+
+The first feasibility run had a high capacity_unknown share, about 50 percent.
+A diagnostic split that into two distinct causes.
+
+The Orange County share was a candidate acquisition artifact. The OSM Overpass
+query matched the county by name, and Orange County is not unique in the United
+States, so the candidate set was polluted with parking lots from other states.
+About 51 percent of Orange candidates fell outside California. The query now
+scopes the county within California first, see src/acquire/osm_osrm.py. After the
+fix Orange capacity_unknown fell from 58.5 percent to 14.5 percent, and 87
+percent of Orange candidates have a section within 500 m.
+
+The Los Angeles share is a real coverage hole, not a threshold artifact. The
+LADWP municipal utility serves the City of Los Angeles and other parts of LA
+County, and SCE does not. The SCE ICA layer therefore has no sections there. Of
+the LA candidates with no section within 500 m, about 69 percent have zero SCE
+sections within 2 km, a clean coverage boundary, not a gradual threshold falloff.
+Raising the threshold does not fix it, 14.6 percent still have no section even at
+5 km. The 500 m threshold is kept, since it is a defensible urban service drop
+distance and the gap is honest, not a threshold to be inflated away. LA DAC areas
+sit disproportionately in LADWP territory, so their capacity_unknown is higher,
+52.7 percent versus 38.2 percent for non DAC. The LA DAC versus non DAC
+feasibility contrast, computed on capacity known candidates only, is unchanged by
+the Orange fix, so it is a real finding for the SCE served portion of LA, with
+the LADWP coverage caveat stated.

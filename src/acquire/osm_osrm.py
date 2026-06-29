@@ -38,12 +38,17 @@ COUNTY_OSM_NAME = {
 def build_overpass_query(county_name: str, timeout_s: int) -> str:
     """Build an Overpass QL query for candidate facilities within a county.
 
-    The county administrative boundary defines the search area. Nodes and ways
-    are returned with center coordinates so ways collapse to a single point.
+    The county administrative boundary defines the search area. The county is
+    scoped within California first, because county names like Orange County are
+    not unique across the United States and an unscoped name match pulls in other
+    states. Nodes and ways are returned with center coordinates so ways collapse
+    to a single point.
     """
     return f"""
 [out:json][timeout:{timeout_s}];
-area["boundary"="administrative"]["admin_level"="6"]["name"="{county_name}"]->.a;
+area["boundary"="administrative"]["admin_level"="4"]["name"="California"]->.ca;
+rel(area.ca)["boundary"="administrative"]["admin_level"="6"]["name"="{county_name}"]->.r;
+.r map_to_area->.a;
 (
   node["amenity"="parking"](area.a);
   way["amenity"="parking"](area.a);

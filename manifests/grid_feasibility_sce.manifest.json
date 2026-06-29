@@ -1,19 +1,19 @@
 {
   "counts": {
-    "candidates": 32995,
-    "capacity_unknown": 16474,
+    "candidates": 26292,
+    "capacity_unknown": 9771,
     "feasible_large": 4206,
     "feasible_medium": 8858,
     "feasible_small": 9289,
     "grid_status": {
       "capacity_redacted": 641,
       "feasible_classified": 16521,
-      "no_section_within_threshold": 15833
+      "no_section_within_threshold": 9130
     }
   },
   "diversity_factor": 1.0,
   "note": "Screening level ICA headroom, not an interconnection guarantee. SDG&E territory excluded, layer not in hand.",
-  "ran_at_utc": "2026-06-29T04:24:22Z",
+  "ran_at_utc": "2026-06-29T04:44:22Z",
   "redistributable": true,
   "screening_caveat": "While Southern California Edison makes every effort to ensure the accuracy of DRPEP, the data provided is for information purposes only. Southern California Edison makes no guarantee, expressly or implied, for the outcome of an interconnection request.",
   "source": "SCE ICA load capacity, frozen snapshot, joined to OSM candidates",
