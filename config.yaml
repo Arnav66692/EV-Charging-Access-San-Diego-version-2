@@ -181,6 +181,42 @@ access:
     dcfc_primary: "residential"
     dcfc_sensitivity: "lodes_wac"
 
+  # Phase 3 queueing supply adjustment. A port is not infinite throughput, so a
+  # congested site counts for less. An M/M/c availability factor scales supply.
+  # Inputs are modeled, not measured, since there is no station level utilization
+  # data. See docs/methods_queueing.md. Toggle off to recover the Phase 2 linear
+  # supply result exactly.
+  queueing:
+    enabled: true
+    # Arrival rate per port per hour, set so a typical urban site runs near 0.6
+    # utilization. rho = arrival_per_port / service_rate. With the service times
+    # below this gives rho about 0.6 for both types, moderately loaded.
+    arrival_rate_per_port_per_hour:
+      dcfc: 0.9
+      l2: 0.15
+    # Mean service time. A fast charge session and an L2 session differ by an
+    # order of magnitude. DCFC 40 minutes, L2 4 hours.
+    mean_service_minutes:
+      dcfc: 40
+      l2: 240
+
+# Phase 3 grid feasibility tiers. Each site size tier needs a load headroom in
+# MW. required_mw = ports * kw_per_port * diversity_factor / 1000. The diversity
+# factor is 1.0, full simultaneity, the conservative screening assumption. See
+# docs/methods_grid_feasibility.md.
+grid_feasibility:
+  diversity_factor: 1.0
+  tiers:
+    small:
+      ports: 2
+      kw_per_port: 150
+    medium:
+      ports: 4
+      kw_per_port: 150
+    large:
+      ports: 8
+      kw_per_port: 350
+
 # LODES LEHD workplace area characteristics, WAC, block level, no API key.
 lodes:
   wac_url_template: "https://lehd.ces.census.gov/data/lodes/LODES8/{state_abbr}/wac/{state_abbr}_wac_S000_JT00_{year}.csv.gz"
