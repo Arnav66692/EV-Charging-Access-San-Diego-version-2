@@ -105,3 +105,63 @@ column is generation_limiting_factor. The join carries it under that honest name
 The load field is confirmed. No change was needed to the load field itself.
 ica_overall_load is correct. The limiting factor field was renamed to reflect its
 true generation semantics.
+
+# Grid fields, SDG&E ICA load capacity
+
+The SDG&E ICA layer is gated behind a free SDG&E account and is input only. The
+user provided an export of the Load Capacity Grids layer. The load field was
+confirmed from that export, not assumed from the name.
+
+## Load field
+
+The field used for load feasibility is **ICAWNOF_UNILOAD**. It is the uniform
+load value without operational flexibility, in MW. It is the SDG&E analogue of
+the SCE ica_overall_load field, the most limiting criterion binding minimum load
+hosting value.
+
+Evidence from the provided export, 495326 segments.
+
+- The layer carries both ICAWNOF_UNILOAD, without operational flexibility, and
+  ICAWOF_UNILOAD, with operational flexibility. They are equal in 100 percent of
+  rows. Operational flexibility does not change the load value. It applies to
+  generation only, the same finding documented for SCE. Either field is the load
+  value. The without operational flexibility field is used, the conservative
+  convention.
+- It is load, not generation. The generation values are in the UNIGENERATION and
+  PVGENERATION fields, which are distinct. The load limiting criterion labels are
+  Load_Thermal and Load_Voltage, so the value is load constrained.
+- Voltage is 12 kV and 4 kV, primary distribution, the same level as SCE.
+
+## Mapping to the SCE field
+
+| Concept | SCE | SDG&E |
+| --- | --- | --- |
+| Load hosting MW, binding minimum | ica_overall_load | ICAWNOF_UNILOAD |
+| Operational flexibility on load | none published | WOF equals WNOF, no effect |
+| Geometry level | line sections, polyline | grid cells, polygon |
+| Limiting criterion field | most_limiting_factor, generation oriented | ICAWNOF_UNILOAD_LC, load oriented |
+
+## Geometry level difference
+
+SDG&E publishes ICA on grid cell polygons, the Load Capacity Grids layer, not on
+line sections. Shape area is nonzero for every row. So nearest section for SDG&E
+means the containing or nearest grid cell, not the nearest line. This is a
+documented difference from SCE.
+
+## Redaction
+
+SDG&E applies a 15/15 rule like SCE. In the provided export the RESTRICTED field
+is N for every row and the load value is non null for all 495326 segments, so no
+segment is redacted in this snapshot. Redaction handling is still applied in the
+classifier, it just finds nothing to flag here.
+
+## Open item, geometry not in the provided export
+
+The provided files are attribute and time series exports only. The Load Capacity
+Grids CSV has OBJECTID, LINE_SEGMENT_NUMBER, CIRCUIT_NAME, and the load fields,
+plus Shape__Area and Shape__Length, but no geometry column. The companion zip is
+645 per circuit hourly result CSVs, also without coordinates. The SDG&E ICA layer
+is not on public ArcGIS Online, it is gated. So the candidate to grid spatial
+join cannot run until a geometry bearing export is provided, a GeoJSON or a
+shapefile of the Load Capacity Grids layer carrying the polygon geometry and the
+ICAWNOF_UNILOAD field. The load field and its SCE mapping are confirmed and ready.
