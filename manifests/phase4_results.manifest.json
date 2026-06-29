@@ -55,6 +55,20 @@
       "LA": "negative, -5.0 to -6.5 percent, DAC worse, robust in sign and size"
     }
   },
+  "phase5_verification": {
+    "A1_nonlinear_optimizer_gain": {
+      "note": "With-build DAC ratio recomputed on the full nonlinear two-step 2SFCA, selected sites added to supply, not summed linear marginals. Linear was a fair approximation, the two agree within 0.004.",
+      "San Diego": {"baseline": 0.728, "linear_with_build": 1.504, "nonlinear_with_build": 1.504},
+      "Orange": {"baseline": 1.147, "linear_with_build": 1.410, "nonlinear_with_build": 1.409},
+      "LA": {"baseline": 0.806, "linear_with_build": 0.945, "nonlinear_with_build": 0.941}
+    },
+    "A2_hand_spot_check": {
+      "note": "Recomputed directly from the access surface and DAC flags, outside the pipeline. Both match within rounding.",
+      "LA_dcfc_dac_ratio": {"reported": 0.807, "independent": 0.8056, "match": true},
+      "San_Diego_dcfc_dac_ratio": {"reported": 0.725, "independent": 0.7278, "match": true}
+    },
+    "outcome": "Both checks pass. No headline number moved. The manifest stands as is."
+  },
   "final_verdict": {
     "LA": "DAC disadvantaged, robust. DCFC access ratio 0.807, CI excludes parity, holds across all three methods and all radii. Grid feasibility DAC gap negative and robust. Plus the LADWP coverage gap. The strongest finding.",
     "San Diego": "DAC disadvantaged, robust at the standard catchment. DCFC access ratio 0.725, CI excludes parity, holds across methods and at 4 and 6 miles, but vanishes at a very wide 10 mile catchment. Grid feasibility DAC gap negative and robust in sign.",
