@@ -224,6 +224,42 @@ grid_feasibility:
       ports: 8
       kw_per_port: 350
 
+# Phase 4 budget-constrained siting optimizer. Selects DCFC sites from the grid
+# feasible candidate set, under a per-county port budget. Two objectives, run and
+# reported separately. The optimizer works on the descriptive Euclidean G2SFCA
+# DCFC residential surface. See docs/methods_optimizer.md.
+optimizer:
+  charger_type: "dcfc"
+  method: "g2sfca"
+  demand_spec: "residential"
+  mode: "euclidean"
+  euclidean_radius_miles: 6.0
+  objectives: ["gap_closing", "total_gain"]
+  # Per county budget as a fraction added to the existing DCFC port count.
+  budget_pct_of_existing_dcfc_ports: [0.05, 0.10, 0.25]
+  # The total gain objective weights DAC area population more heavily.
+  equity_weight_dac: 2.0
+
+# Phase 4 bootstrap. Spatial block bootstrap, the block is the census tract, so
+# block groups in the same tract resample together, respecting autocorrelation.
+bootstrap:
+  n_resamples: 2000
+  block: "tract"
+  seed: 12345
+  ci_level: 0.95
+
+# Phase 4 robustness sweeps. Each knob is varied and the per county DAC gap is
+# reported, to see if the finding holds in sign and rough size or flips.
+sweeps:
+  euclidean_radii_miles_dcfc: [4.0, 6.0, 10.0]
+  methods: ["g2sfca", "e2sfca", "3sfca"]
+  join_thresholds_m: [250, 500, 1000]
+  diversity_factors: [1.0, 0.6]
+  tier_sets:
+    default: {small: 0.3, medium: 0.6, large: 2.8}
+    tighter: {small: 0.5, medium: 1.0, large: 3.5}
+    looser: {small: 0.2, medium: 0.4, large: 2.0}
+
 # LODES LEHD workplace area characteristics, WAC, block level, no API key.
 lodes:
   wac_url_template: "https://lehd.ces.census.gov/data/lodes/LODES8/{state_abbr}/wac/{state_abbr}_wac_S000_JT00_{year}.csv.gz"

@@ -16,3 +16,6 @@ openpyxl==3.1.5
 # Test and development.
 pytest==8.3.4
 responses==0.25.3
+
+# Phase 4 optimizer.
+PuLP==2.9.0

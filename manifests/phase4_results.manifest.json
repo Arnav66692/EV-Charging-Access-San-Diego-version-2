@@ -1,0 +1,66 @@
+{
+  "phase": 4,
+  "note": "Headline aggregate results only. Full surfaces and SDG&E derived data stay gitignored. These are ratios, feasibility shares, and gains, not raw layers.",
+  "optimizer": {
+    "surface": "euclidean G2SFCA DCFC residential, d0 6 miles",
+    "objectives": ["gap_closing", "total_gain"],
+    "equity_weight_dac": 2.0,
+    "note_objective_contrast": "Under equity weight 2.0 the two objectives select the same sites. A pure efficiency objective, equity weight 1.0, spreads to non-DAC areas, in LA 120 of 172 sites, and does not close the gap.",
+    "by_county_10pct_budget_gap_closing": {
+      "San Diego": {"baseline_ratio": 0.728, "with_build_ratio": 1.504, "ratio_gain": 0.776, "sites": 45, "dac_sites": 38, "non_dac_sites": 7, "budget_ports": 150, "capacity_unknown_excluded": 458},
+      "Orange": {"baseline_ratio": 1.147, "with_build_ratio": 1.410, "ratio_gain": 0.263, "sites": 26, "dac_sites": 10, "non_dac_sites": 16, "budget_ports": 145, "capacity_unknown_excluded": 916},
+      "LA": {"baseline_ratio": 0.806, "with_build_ratio": 0.945, "ratio_gain": 0.139, "sites": 45, "dac_sites": 45, "non_dac_sites": 0, "budget_ports": 344, "capacity_unknown_excluded": 8855}
+    },
+    "key_finding": "LA gap closing is capped near parity even at 25 percent budget because most LA DAC candidates are capacity_unknown, LADWP territory, and not selectable. The grid constraint limits how much siting can close the LA gap."
+  },
+  "bootstrap": {
+    "method": "spatial block bootstrap, block is census tract, 2000 resamples, seed 12345, 95 percent percentile CI",
+    "dac_access_ratio_dcfc_g2sfca": {
+      "San Diego": {"point": 0.725, "ci": [0.599, 0.889], "verdict": "real gap"},
+      "Orange": {"point": 1.147, "ci": [1.093, 1.201], "verdict": "real, DAC better"},
+      "LA": {"point": 0.807, "ci": [0.767, 0.834], "verdict": "real gap"}
+    },
+    "renter_q4q1_dcfc_g2sfca": {
+      "San Diego": {"point": 1.236, "ci": [1.103, 1.433]},
+      "Orange": {"point": 1.173, "ci": [1.113, 1.222]},
+      "LA": {"point": 1.104, "ci": [1.052, 1.163]}
+    },
+    "multifamily_q4q1_dcfc_g2sfca": {
+      "San Diego": {"point": 1.373, "ci": [1.192, 1.549]},
+      "Orange": {"point": 1.167, "ci": [1.106, 1.222]},
+      "LA": {"point": 1.152, "ci": [1.096, 1.209]}
+    },
+    "note_renter_multifamily": "Renter and multifamily areas have HIGHER DCFC access in all three counties, CI excludes parity. They are not disadvantaged on access, they are urban and near chargers.",
+    "optimizer_gap_closing_gain_10pct": {
+      "San Diego": {"point": 0.779, "ci": [0.527, 0.945]},
+      "Orange": {"point": 0.263, "ci": [0.173, 0.425]},
+      "LA": {"point": 0.139, "ci": [0.113, 0.173]}
+    }
+  },
+  "sweeps": {
+    "access_dac_ratio_method_dcfc_6mi": {
+      "San Diego": {"g2sfca": 0.728, "e2sfca": 0.736, "3sfca": 0.690},
+      "Orange": {"g2sfca": 1.147, "e2sfca": 1.154, "3sfca": 1.069},
+      "LA": {"g2sfca": 0.806, "e2sfca": 0.788, "3sfca": 0.785}
+    },
+    "access_dac_ratio_radius_dcfc_g2sfca": {
+      "San Diego": {"4mi": 0.648, "6mi": 0.728, "10mi": 1.018},
+      "Orange": {"4mi": 1.277, "6mi": 1.207, "10mi": 1.209},
+      "LA": {"4mi": 0.760, "6mi": 0.811, "10mi": 0.931}
+    },
+    "grid_feasibility_small_tier_dac_gap": {
+      "note": "DAC minus non-DAC small-tier feasible share among capacity-known, swept over join threshold 250 to 1000 m and tier sets default tighter looser",
+      "San Diego": "negative, -3.6 to -10.6 percent, DAC worse, robust in sign",
+      "Orange": "positive, +4.2 to +7.9 percent, DAC better, robust in sign",
+      "LA": "negative, -5.0 to -6.5 percent, DAC worse, robust in sign and size"
+    }
+  },
+  "final_verdict": {
+    "LA": "DAC disadvantaged, robust. DCFC access ratio 0.807, CI excludes parity, holds across all three methods and all radii. Grid feasibility DAC gap negative and robust. Plus the LADWP coverage gap. The strongest finding.",
+    "San Diego": "DAC disadvantaged, robust at the standard catchment. DCFC access ratio 0.725, CI excludes parity, holds across methods and at 4 and 6 miles, but vanishes at a very wide 10 mile catchment. Grid feasibility DAC gap negative and robust in sign.",
+    "Orange": "DAC NOT disadvantaged, robust. DCFC access ratio 1.147, CI entirely above parity, DAC better across methods and radii. Grid feasibility DAC gap positive. The counterexample.",
+    "renter_multifamily": "Not disadvantaged on DCFC access in any county, CI above parity.",
+    "L2": "Noisier, several CIs straddle parity, no clear L2 claim.",
+    "headline": "The DCFC DAC access disadvantage is real and robust in LA and San Diego, and absent in Orange where DAC areas are better served. The pattern is county specific, not a uniform statewide disadvantage. Siting can close the San Diego gap substantially, but the LA gap only partly, capped by the LADWP coverage of DAC areas."
+  }
+}
