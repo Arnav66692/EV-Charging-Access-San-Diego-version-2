@@ -15,6 +15,8 @@ feasibility is not an interconnection approval or proof of parcel buildability.
 Read the [paper draft](paper/draft.md), [figures and tables](paper/02-figures-and-tables.md),
 and [mechanism diagnostic](paper/04-mechanism-diagnostic.md).
 
+![Derived charging-access map with reachable layer controls](docs/images/map-preview.png)
+
 ## What is available
 
 | Component | Implemented | Evidence and reproduction boundary |
