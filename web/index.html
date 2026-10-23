@@ -13,7 +13,11 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-  #map{position:absolute;inset:0}
+  #map{height:100vh;min-height:420px;background:#e6edf2}
+  button:focus-visible,input:focus-visible{outline:3px solid #1565c0;outline-offset:3px}
+  .leaflet-top.leaflet-right{top:12px;right:260px}
+  #status{font-size:12px;color:var(--muted);margin-top:8px}
+  #sources{bottom:12px;right:12px;max-width:320px;padding:9px 12px;font-size:10.5px;line-height:1.45}
   .panel{position:absolute;z-index:1000;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 24px rgba(20,32,43,.12)}
   #header{top:12px;left:12px;right:12px;max-width:560px;padding:14px 16px}
   #header h1{margin:0 0 4px;font-size:16px;letter-spacing:-.01em}
@@ -22,9 +26,9 @@
   #controls{top:12px;right:12px;padding:12px 14px;width:236px;font-size:13px}
   #controls h2{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
   .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px}
-  .seg button{flex:1;border:0;background:#fff;padding:7px 6px;font-size:12px;cursor:pointer;color:var(--ink)}
+  .seg button{flex:1;border:0;background:#fff;padding:10px 6px;min-height:44px;font-size:12px;cursor:pointer;color:var(--ink)}
   .seg button.on{background:var(--ink);color:#fff}
-  .toggle{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:12.5px;cursor:pointer}
+  .toggle{display:flex;align-items:center;gap:8px;margin:7px 0;min-height:32px;font-size:12.5px;cursor:pointer}
   .toggle input{accent-color:var(--ink)}
   #legend{margin-top:10px;font-size:11.5px;color:var(--muted)}
   .ramp{display:flex;height:12px;border-radius:3px;overflow:hidden;margin:4px 0}
@@ -36,11 +40,17 @@
   .leaflet-popup-content .k{color:var(--muted)} .leaflet-popup-content .v{font-weight:600}
   .pill{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600}
   .pill.dac{background:#f3e8fb;color:var(--dac)} .pill.low{background:#fff4ec;color:var(--warn)}
-  @media(max-width:640px){#header{max-width:none;right:12px}#controls{position:static;margin:0}#finding{display:none}}
+  @media(max-width:900px){
+    .leaflet-top.leaflet-right{top:0;right:0}
+    body{display:flex;flex-direction:column;height:auto}
+    #header,#controls,#finding,#sources{position:relative;inset:auto;max-width:none;width:auto;margin:8px 12px;box-shadow:none}
+    #header{order:0}#controls{order:1}#map{order:2;height:60vh;min-height:360px}
+    #finding{order:3}#sources{order:4}
+  }
 </style>
 </head>
 <body>
-<div id="map"></div>
+<div id="map" role="region" aria-label="Charging access map"></div>
 
 <div id="header" class="panel">
   <h1>EV fast-charging access and grid feasibility</h1>
@@ -51,13 +61,14 @@
 <div id="controls" class="panel">
   <h2>Layer</h2>
   <div class="seg" id="layerSeg">
-    <button data-layer="rel" class="on">Relative access</button>
-    <button data-layer="pct">Access percentile</button>
+    <button data-layer="rel" class="on" aria-pressed="true">Relative access</button>
+    <button data-layer="pct" aria-pressed="false">Access percentile</button>
   </div>
   <label class="toggle"><input type="checkbox" id="dacToggle"> Outline DAC areas</label>
   <label class="toggle"><input type="checkbox" id="candToggle"> Candidate sites by tier</label>
   <label class="toggle"><input type="checkbox" id="lowToggle"> Flag low-population areas</label>
   <div id="legend"></div>
+  <div id="status" role="status" aria-live="polite">Loading bundled map data…</div>
 </div>
 
 <div id="finding" class="panel">
@@ -68,9 +79,17 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-const map = L.map('map',{zoomControl:true}).setView([33.6,-117.6],8);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
-  {attribution:'&copy; OpenStreetMap, &copy; CARTO', subdomains:'abcd', maxZoom:18}).addTo(map);
+const map = L.map('map',{zoomControl:false}).setView([33.6,-117.6],8);
+// Bundled county geometry provides context without a tile key or external tiles.
+L.control.zoom({position:'topright'}).addTo(map);
+map.attributionControl.addAttribution('Boundaries: US Census; candidates: © OpenStreetMap contributors');
+const status = document.getElementById('status');
+const toggles = ['dacToggle','candToggle','lowToggle'].map(id=>document.getElementById(id));
+toggles.forEach(input=>input.disabled=true);
+function readJSON(url){return fetch(url).then(r=>{
+  if(!r.ok)throw new Error('Could not load '+url+' ('+r.status+')');
+  return r.json();
+});}
 
 // --- color scales ---
 function relColor(v){ // diverging around parity 1.0
@@ -115,19 +134,22 @@ function legend(){const el=document.getElementById('legend');
 function render(){ if(bgLayer)bgLayer.setStyle(styleBG); legend(); }
 
 Promise.all([
-  fetch('data/block_groups.geojson').then(r=>r.json()),
-  fetch('data/counties.geojson').then(r=>r.json())
+  readJSON('data/block_groups.geojson'),
+  readJSON('data/counties.geojson')
 ]).then(([bg,counties])=>{
   bgData=bg;
   bgLayer=L.geoJSON(bg,{style:styleBG,onEachFeature:onEachBG}).addTo(map);
   L.geoJSON(counties,{style:{fill:false,color:'#2a3b49',weight:1.6,opacity:.85}}).addTo(map);
   legend();
-  try{map.fitBounds(bgLayer.getBounds(),{padding:[20,20]});}catch(e){}
-});
+  map.fitBounds(bgLayer.getBounds(),{padding:[20,20]});
+  toggles.forEach(input=>input.disabled=false);
+  status.textContent='Map ready. Bundled county boundaries; no external basemap required.';
+}).catch(error=>{status.textContent='Map data could not be loaded. Reload to retry. '+error.message;});
 
 document.getElementById('layerSeg').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b)return;
-  document.querySelectorAll('#layerSeg button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('#layerSeg button').forEach(x=>{x.classList.remove('on');x.setAttribute('aria-pressed','false');});
+  b.setAttribute('aria-pressed','true');
   b.classList.add('on'); mode=b.dataset.layer==='rel'?'rel':'pct'; render();
 });
 document.getElementById('dacToggle').addEventListener('change',e=>{
@@ -149,8 +171,11 @@ document.getElementById('candToggle').addEventListener('change',e=>{
   if(e.target.checked){
     if(candData){drawCandidates();}                       // lazy-load: fetch only on first toggle
     else{e.target.disabled=true;
-      fetch('data/candidates.geojson').then(r=>r.json()).then(d=>{candData=d;e.target.disabled=false;
-        if(document.getElementById('candToggle').checked)drawCandidates();});}
+      readJSON('data/candidates.geojson').then(d=>{candData=d;
+        if(document.getElementById('candToggle').checked)drawCandidates();
+        status.textContent='Candidate sites loaded.';
+      }).catch(error=>{e.target.checked=false;status.textContent='Candidate sites unavailable. Toggle again to retry. '+error.message;})
+        .finally(()=>{e.target.disabled=false;});}
   } else if(candLayer){map.removeLayer(candLayer);candLayer=null;}
 });
 </script>
@@ -158,7 +183,7 @@ document.getElementById('candToggle').addEventListener('change',e=>{
 <noscript><p style="padding:16px">This map needs JavaScript.</p></noscript>
 <!-- Data sources: AFDC (US DOE/NREL), ACS (US Census), CalEnviroScreen 4.0 (OEHHA), OpenStreetMap, SCE DERiM ICA.
      San Diego grid feasibility was derived from the SDG&E ICA layer used as input only. No SDG&E load-capacity data is shown or shipped. -->
-<div class="panel" style="position:absolute;bottom:12px;right:12px;max-width:320px;padding:9px 12px;font-size:10.5px;color:#5b6b7a;line-height:1.45">
+<div id="sources" class="panel">
   Sources: AFDC (US DOE/NREL), ACS (US Census), CalEnviroScreen 4.0 (OEHHA), OpenStreetMap, SCE DERiM ICA.
   San Diego grid feasibility derived from the SDG&E ICA layer as input only. No SDG&E load-capacity values are shown.
   Low-population areas may overstate access from a single nearby charger.

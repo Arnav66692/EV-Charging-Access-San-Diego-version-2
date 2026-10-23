@@ -1,25 +1,14 @@
-"""v1-compat sanity gate.
+"""Euclidean accessibility checks: qualitative pattern or frozen-supply comparison.
 
-Runs the accessibility engine in v1-compat mode for San Diego. That is the
-euclidean backend, the v1 radii, geometric centroids, G2SFCA, and residential
-demand. No OSRM and no Docker are needed.
-
-Two paths.
-
-Exact reproduction. If the user provides the path to v1's frozen AFDC snapshot,
-and v1's recorded San Diego DCFC ratio, the gate recomputes the ratio from that
-station set and asserts it matches within a documented tolerance.
-
-Qualitative pattern. If v1's snapshot is not available, the station set differs,
-so exact reproduction is impossible. The gate instead asserts the qualitative
-pattern. The DCFC ratio is below 1, and there is a proximity reversal versus a
-naive nearest distance measure. The gate output flags that exact reproduction
-requires v1's snapshot.
+A tolerance comparison is not an exact reproduction claim: demographic inputs,
+centroids, and algorithm choices also affect the result. Record their hashes.
 """
 
 from __future__ import annotations
 
 import json
+import hashlib
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -32,7 +21,8 @@ from src.access.dac_ratio import weighted_median
 from src.access.od_cost import EuclideanODProvider, _xy_3310
 from src.access.od_types import ORIGIN, SUPPLY
 from src.access.sfca import access_scores
-from src.access.supply import capacity_series
+from src.access.supply import capacity_series, supply_by_type
+from src.acquire.afdc import parse_stations, parse_ports
 
 EPS_METERS = 1.0
 
@@ -90,6 +80,36 @@ def run_gate(
     origins are geometric centroids for San Diego block groups. supplies_dcfc are
     the DCFC stations. radius_m is the v1 DCFC radius converted to meters.
     """
+    if (v1_snapshot_path is None) != (v1_reference_ratio is None):
+        raise ValueError("Provide both a frozen AFDC JSON snapshot and reference ratio")
+    if not math.isfinite(tolerance) or tolerance < 0:
+        raise ValueError("tolerance must be finite and non-negative")
+    provenance = {"radius_m": radius_m, "method": "g2sfca"}
+    if v1_snapshot_path is not None:
+        if not math.isfinite(v1_reference_ratio) or v1_reference_ratio <= 0:
+            raise ValueError("reference ratio must be positive and finite")
+        raw_bytes = Path(v1_snapshot_path).read_bytes()
+        raw = json.loads(raw_bytes)
+        stations = parse_stations(raw)
+        if stations.empty:
+            raise ValueError("AFDC snapshot contains no stations")
+        stations = stations.loc[
+            (stations["status_code"] == "E") & (stations["access_code"] == "public")
+        ]
+        supplies_dcfc = supply_by_type(parse_ports(raw), stations, "dcfc")
+        if supplies_dcfc.empty:
+            raise ValueError("AFDC snapshot contains no operating public DCFC supply")
+        provenance["snapshot_sha256"] = hashlib.sha256(raw_bytes).hexdigest()
+        provenance["snapshot_filter"] = "status_code=E, access_code=public, DCFC"
+    # Hash the actual model inputs, not just a filename supplied by the caller.
+    origin_rows = pd.DataFrame({ORIGIN: origins[ORIGIN].to_numpy(),
+                                "geometry": origins.geometry.to_wkt().to_numpy()})
+    for name, value in (("origins", origin_rows), ("residential", residential),
+                        ("dac_flags", dac_flags), ("population", population)):
+        provenance[name + "_sha256"] = hashlib.sha256(
+            value.to_csv().encode("utf-8")
+        ).hexdigest()
+    provenance["origins_crs"] = str(origins.crs)
     provider = EuclideanODProvider()
     od = provider.od_within_threshold(origins, supplies_dcfc, radius_m)
     supply_series = capacity_series(supplies_dcfc)
@@ -113,17 +133,17 @@ def run_gate(
     if v1_snapshot_path is not None and v1_reference_ratio is not None:
         passed = abs(sfca_ratio - v1_reference_ratio) <= tolerance
         message = (
-            f"Exact reproduction path. Recomputed San Diego DCFC ratio "
+            f"Frozen-supply compatibility comparison. Recomputed DCFC ratio "
             f"{sfca_ratio:.3f} versus v1 reference {v1_reference_ratio:.3f}, "
             f"tolerance {tolerance}. {'Within' if passed else 'Outside'} tolerance."
         )
         return GateResult(
-            path_taken="exact_reproduction",
+            path_taken="frozen_supply_comparison",
             sfca_dac_ratio=sfca_ratio,
             naive_proximity_ratio=naive_ratio,
             passed=passed,
             message=message,
-            details={"v1_reference_ratio": v1_reference_ratio, "tolerance": tolerance},
+            details={**provenance, "v1_reference_ratio": v1_reference_ratio, "tolerance": tolerance},
         )
 
     # Qualitative path. DCFC ratio below 1, and a reversal where naive nearest
@@ -144,7 +164,7 @@ def run_gate(
         naive_proximity_ratio=naive_ratio,
         passed=passed,
         message=message,
-        details={"ratio_below_one": ratio_below_one, "reversal": reversal},
+        details={**provenance, "ratio_below_one": ratio_below_one, "reversal": reversal},
     )
 
 

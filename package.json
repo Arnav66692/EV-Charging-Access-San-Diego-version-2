@@ -1,0 +1,6 @@
+{
+  "name": "ev-grid-siting-map-checks",
+  "private": true,
+  "scripts": {"test:map": "playwright test"},
+  "devDependencies": {"@playwright/test": "1.56.1", "leaflet": "1.9.4"}
+}

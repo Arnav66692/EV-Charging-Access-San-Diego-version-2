@@ -72,7 +72,7 @@ access-lodes:
 	$(PY) -m src.access.demand
 
 access-gate:
-	$(PY) -m src.access.run
+	$(PY) -m src.access.run $(GATE_ARGS)
 
 access-primary:
 	$(PY) -c "from src.access.run import run_primary; run_primary()"
