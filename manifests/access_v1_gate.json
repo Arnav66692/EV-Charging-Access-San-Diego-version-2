@@ -3,9 +3,9 @@
     "tolerance": 0.05,
     "v1_reference_ratio": 0.6321
   },
-  "message": "Exact reproduction path. Recomputed San Diego DCFC ratio 0.640 versus v1 reference 0.632, tolerance 0.05. Within tolerance.",
+  "message": "Historical ratio retained for reference. The former gate did not read its snapshot; provenance and pass status are unverified. Re-run the current gate with explicit inputs.",
   "naive_proximity_ratio": 1.4526389065559977,
-  "passed": true,
-  "path_taken": "exact_reproduction",
+  "passed": null,
+  "path_taken": "legacy_unverified_comparison",
   "sfca_dac_ratio": 0.6400204269776792
 }

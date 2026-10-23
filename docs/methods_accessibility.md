@@ -42,7 +42,7 @@ of the switch from straight line distance to drive time.
 Primary mode uses population weighted centroids from the 2020 block group
 centers of population file. That places the origin where people are, not at the
 geometric middle of the polygon. Geometric centroids are kept only for the
-v1-compat gate, which reproduces v1, which used geometric centroids.
+v1-compat gate, which compares with v1 using geometric centroids.
 
 ## Time thresholds
 
@@ -114,9 +114,12 @@ FIPS identifiers are strings. Costs and joins are in EPSG:3310.
 The gate runs v1-compat mode for San Diego and writes a documented result. There
 are two paths.
 
-The exact reproduction path runs when the user provides v1's frozen AFDC snapshot
-and v1's recorded San Diego DCFC ratio. The gate recomputes the ratio from that
-station set and asserts it matches within a documented tolerance.
+The frozen-supply comparison reads the actual AFDC API JSON snapshot and uses
+its operating public DCFC stations. It compares against the supplied recorded
+ratio within an absolute tolerance and records SHA-256 hashes of the snapshot
+and actual origins, demand, DAC flags and population weights. This is not an
+exact reproduction claim: the other input vintages and method choices must also
+match. See the README for the required polygon file and paired CLI arguments.
 
 The qualitative pattern path runs when v1's snapshot is not available. The station
 set then differs, so exact reproduction is impossible. The gate asserts the

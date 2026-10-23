@@ -47,3 +47,9 @@ logs_*.txt
 
 # SDG&E is input-only. Its manifest stays gitignored too, not just the data.
 manifests/sdge_*
+
+# Browser test dependencies and artifacts
+node_modules/
+playwright-report/
+test-results/
+.gstack/

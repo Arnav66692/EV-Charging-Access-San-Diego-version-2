@@ -4,7 +4,8 @@ Two entry points wire the engine to the Phase 1 processed outputs.
 
 run_v1_gate runs the v1-compat gate for San Diego with the euclidean backend. It
 needs no Docker. It needs the Phase 1 processed AFDC, ACS, and CES tables, plus
-the population weighted centroids.
+block-group polygons for geometric centroids. A frozen AFDC JSON snapshot
+and reference ratio optionally enable a tolerance comparison, not exact reproduction.
 
 run_primary runs the full primary surfaces with the OSRM backend. It needs a live
 OSRM instance, which needs Docker. It is wired and ready, and waits on that
@@ -15,10 +16,13 @@ Both raise a clear error when an input is missing.
 
 from __future__ import annotations
 
+import argparse
+from pathlib import Path
+
 import geopandas as gpd
 import pandas as pd
 
-from src.access.centroids import population_weighted_centroids
+from src.access.centroids import geometric_centroids, population_weighted_centroids
 from src.access.dac_ratio import dac_access_ratio
 from src.access.demand import lodes_wac_demand, residential_from_acs
 from src.access.gate import GateResult, run_gate, write_gate_result
@@ -67,16 +71,19 @@ def _load_demand(cfg: Config) -> dict[str, pd.Series]:
     }
 
 
-def run_v1_gate(cfg: Config | None = None) -> GateResult:
+def run_v1_gate(cfg: Config | None = None, *, block_groups: Path,
+                snapshot: Path | None = None, reference_ratio: float | None = None,
+                tolerance: float = 0.01) -> GateResult:
     """Run the v1-compat gate for San Diego and write the result."""
     cfg = cfg or load_config()
     processed = cfg.path("processed")
 
-    centroids = population_weighted_centroids(cfg)
+    centroids = geometric_centroids(gpd.read_file(_require(block_groups)))
     san_diego = {fips(c) for c in cfg.territory_counties("sdge")}
     origins = centroids[centroids["geoid_bg"].str[:5].isin(san_diego)].copy()
 
-    supplies = _load_supplies(cfg)["dcfc"]
+    supplies = (_load_supplies(cfg)["dcfc"] if snapshot is None else
+                gpd.GeoDataFrame(geometry=[], crs="EPSG:4326"))
 
     acs = pd.read_parquet(_require(processed / "acs_blockgroups.parquet"))
     residential = residential_from_acs(acs)
@@ -98,6 +105,9 @@ def run_v1_gate(cfg: Config | None = None) -> GateResult:
         population=population,
         radius_m=radius_m,
         e2_params=e2,
+        v1_snapshot_path=snapshot,
+        v1_reference_ratio=reference_ratio,
+        tolerance=tolerance,
     )
     write_gate_result(cfg.path("manifests") / "access_v1_gate.json", result)
     print(result.message)
@@ -152,4 +162,15 @@ def run_primary(cfg: Config | None = None) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    run_v1_gate()
+    parser = argparse.ArgumentParser(description="Euclidean v1 compatibility check")
+    parser.add_argument("--block-groups", type=Path, required=True,
+                        help="Polygon file with geoid_bg identifiers; geometric centroids are computed")
+    parser.add_argument("--snapshot", type=Path, help="Frozen AFDC API JSON")
+    parser.add_argument("--reference-ratio", type=float)
+    parser.add_argument("--tolerance", type=float, default=0.01)
+    args = parser.parse_args()
+    if (args.snapshot is None) != (args.reference_ratio is None):
+        parser.error("--snapshot and --reference-ratio must be supplied together")
+    result = run_v1_gate(block_groups=args.block_groups, snapshot=args.snapshot,
+                         reference_ratio=args.reference_ratio, tolerance=args.tolerance)
+    raise SystemExit(0 if result.passed else 1)

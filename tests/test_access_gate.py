@@ -3,6 +3,9 @@ parsing works on the centers of population format."""
 
 from __future__ import annotations
 
+import json
+import hashlib
+import pytest
 import geopandas as gpd
 from shapely.geometry import Polygon
 
@@ -36,31 +39,37 @@ def test_v1_compat_gate_runs_and_emits_result(gate_fixture, tmp_path):
     assert out.exists()
 
 
-def test_exact_reproduction_path_with_reference_ratio(gate_fixture):
-    # When a v1 snapshot path and reference ratio are supplied, the gate compares
-    # the recomputed ratio to the reference within tolerance.
-    first = run_gate(
-        origins=gate_fixture["origins"],
-        supplies_dcfc=gate_fixture["supplies_dcfc"],
-        residential=gate_fixture["residential"],
-        dac_flags=gate_fixture["dac_flags"],
-        population=gate_fixture["population"],
-        radius_m=gate_fixture["radius_m"],
-    )
-    computed = first.sfca_dac_ratio
-    result = run_gate(
-        origins=gate_fixture["origins"],
-        supplies_dcfc=gate_fixture["supplies_dcfc"],
-        residential=gate_fixture["residential"],
-        dac_flags=gate_fixture["dac_flags"],
-        population=gate_fixture["population"],
-        radius_m=gate_fixture["radius_m"],
-        v1_snapshot_path="/some/v1/snapshot.json",
-        v1_reference_ratio=computed,
-        tolerance=0.01,
-    )
-    assert result.path_taken == "exact_reproduction"
-    assert result.passed is True
+def test_missing_snapshot_cannot_pass(gate_fixture, tmp_path):
+    with pytest.raises(FileNotFoundError):
+        run_gate(**gate_fixture, v1_snapshot_path=tmp_path / "absent.json",
+                 v1_reference_ratio=0.7)
+
+
+def test_comparison_reads_frozen_supply(gate_fixture, tmp_path):
+    stations = []
+    for _, row in gate_fixture["supplies_dcfc"].to_crs(4326).iterrows():
+        stations.append(dict(id=row["supply_id"], latitude=row.geometry.y,
+                             longitude=row.geometry.x, ev_dc_fast_num=row["capacity"],
+                             status_code="E", access_code="public"))
+    snapshot = tmp_path / "afdc.json"
+    snapshot.write_text(json.dumps({"fuel_stations": stations}))
+    reference = run_gate(**gate_fixture).sfca_dac_ratio
+    # Prove supplied mutable stations are not used in the frozen comparison.
+    changed = dict(gate_fixture)
+    changed["supplies_dcfc"] = gate_fixture["supplies_dcfc"].iloc[:0]
+    result = run_gate(**changed, v1_snapshot_path=snapshot,
+                      v1_reference_ratio=reference, tolerance=0.00001)
+    assert result.passed
+    assert result.path_taken == "frozen_supply_comparison"
+    assert result.details["snapshot_sha256"] == hashlib.sha256(snapshot.read_bytes()).hexdigest()
+    assert "origins_sha256" in result.details
+    assert not run_gate(**changed, v1_snapshot_path=snapshot,
+                        v1_reference_ratio=reference + 1, tolerance=0.01).passed
+
+
+def test_reference_requires_snapshot(gate_fixture):
+    with pytest.raises(ValueError, match="both"):
+        run_gate(**gate_fixture, v1_reference_ratio=0.7)
 
 
 def test_centers_of_population_parse_and_geoid():

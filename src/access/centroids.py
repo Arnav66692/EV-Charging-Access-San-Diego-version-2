@@ -5,7 +5,7 @@ same source family located in Phase 1. It is the primary mode. It places the
 centroid where people actually are, not at the geometric middle of the polygon.
 
 geometric uses the polygon centroid. It is kept only for the v1-compat gate,
-which reproduces v1, which used geometric centroids.
+which compares with v1, which used geometric centroids.
 
 All centroids are returned as points in EPSG:4326. FIPS identifiers are strings.
 """
